@@ -1,0 +1,88 @@
+/*
+  SLICERS SIGNAGE DESIGN SYSTEM
+  "Neighborhood deli counter, lit like a film set."
+  Shared by every Slicers board. Same system as the Rocco's boards
+  (cards, hairlines, gold prices, hero panel, auto-fit), Slicers' own
+  brand: deli red, cream, kraft, gold.
+
+  Type: Alfa Slab One (section titles, deli-sign feel), Playfair Display
+  900 italic (hero name), DM Sans (items and prices).
+  Every board draws on a fixed 1920x1080 stage that is scaled to the TV.
+*/
+:root {
+  --dark: #111009;
+  --ink: #1C1410;
+  --cream: #FAF6EE;
+  --cream-2: rgba(250, 246, 238, .70);
+  --cream-3: rgba(250, 246, 238, .46);
+  --tan: #EDE4D3;
+  --kraft: #8B6F47;
+  --red: #C8281E;          /* brand red: tabs, tags, big shapes */
+  --red-hi: #E8473A;       /* brand red lifted for small text on dark */
+  --gold: #C2A35E;
+  --gold-hi: #E6C77F;      /* prices */
+  --rule: rgba(194, 163, 94, .34);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; cursor: none; }
+
+.stage {
+  position: absolute; left: 50%; top: 50%;
+  width: 1920px; height: 1080px; overflow: hidden;
+  transform-origin: center center;
+  color: var(--cream);
+  font-family: "DM Sans", "Helvetica Neue", Arial, sans-serif;
+  background: var(--dark);
+  transition: margin .8s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- environment: warm dark, grain, vignette ---------- */
+.env { position: absolute; inset: 0; pointer-events: none; }
+.env .bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(1100px 800px at 72% 38%, rgba(250,246,238,.035), transparent 60%),
+    radial-gradient(700px 600px at 12% 30%, rgba(200,40,30,.10), transparent 70%),
+    linear-gradient(180deg, #17140f 0%, #111009 55%, #0b0a07 100%);
+}
+.env .grain {
+  position: absolute; inset: -50%;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .95  0 0 0 0 .88  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: .07; mix-blend-mode: overlay;
+}
+.env .vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(130% 120% at 50% 45%, transparent 55%, rgba(0,0,0,.62) 100%);
+}
+
+/* ---------- type ---------- */
+.eyebrow {
+  font-family: "DM Sans", sans-serif; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .3em; color: var(--red-hi); font-size: 18px;
+  display: inline-flex; align-items: center; gap: 14px;
+}
+.eyebrow::after { content: ""; width: 64px; height: 1px; background: linear-gradient(90deg, var(--gold), transparent); }
+.feature-title {
+  font-family: "Playfair Display", Georgia, serif; font-weight: 900; font-style: italic;
+  line-height: .95; letter-spacing: -.01em; color: var(--cream);
+  text-shadow: 0 6px 40px rgba(0,0,0,.55);
+}
+.section-title {
+  font-family: "Alfa Slab One", Georgia, serif; font-weight: 400; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--cream);
+  display: flex; align-items: center; gap: 16px;
+}
+.section-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--rule), transparent); }
+
+/* Price: dollars big, cents raised, "$" and ".00" dropped */
+.price { font-family: "DM Sans", sans-serif; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.price sup { font-size: .52em; vertical-align: top; position: relative; top: .1em; margin-left: 1px; letter-spacing: 0; }
+.price small { font-size: .55em; font-weight: 700; letter-spacing: .04em; opacity: .75; margin-left: 2px; }
+
+/* Sold out tag (same toggle as the website) */
+.tag-out {
+  display: inline-block; font-family: "DM Sans", sans-serif; font-weight: 800; font-size: .62em; letter-spacing: .16em;
+  text-transform: uppercase; color: #fff; background: var(--red); padding: .28em .6em .22em; border-radius: 4px;
+}

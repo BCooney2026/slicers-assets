@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slicers Deli Menu</title>
+<!--
+  SLICERS FULL MENU BOARDS (Trish's TVs)
+    menu.html?tv=1   Sandwiches: every sandwich, Breakfast, $29 Dinner
+                     Specials (tonight highlighted), and the Limited Time
+                     sandwich when one is on.
+    menu.html?tv=2   Corropolese side: Tomato Pie, Rolls & Bread, Local
+                     Sweets, Cake Slices, Cookie Trays.
+  EVERY item on the Slicers menu is on one of the two screens.
+  One TV only? Use ?tv=1 and ?tv=2 on a timer later, or ask Claude for a
+  combined board.
+
+  Left: rotating feature panel (photo, name, price) with a Today card.
+  When a Limited Time sandwich is on, it gets every other slot.
+  Right: the full menu, fixed and readable. Menu text never moves.
+  One text size per board: if anything overflows, the whole board
+  shrinks together.
+
+  LIVE from Trish's tablet (signage.js): sold out items (struck through
+  with a Sold Out tag), the Limited Time sandwich, holiday ham orders.
+  Typed here: menu items and prices, copied from the website menu
+  (SlicersMenu.tsx). If a price changes, change it in BOTH places.
+  Previews without internet: add &demo=lto,hams,soldout
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Playfair+Display:ital,wght@1,900&family=DM+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="signage.css">
+<style>
+  .stage { --fs: 1; }
+
+  /* ---------- feature panel (left) ---------- */
+  .hero { position: absolute; left: 0; top: 0; bottom: 0; width: 560px; border-right: 1px solid var(--rule);
+          background: linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.08) 40%, rgba(0,0,0,.40)); }
+  .hero .logo { position: absolute; z-index: 5; left: 50%; top: 22px; width: 290px; transform: translateX(-50%); filter: drop-shadow(0 10px 22px rgba(0,0,0,.6)); }
+  .hero .logo img { display: block; width: 100%; height: auto; }
+  .feat { position: absolute; left: 0; right: 0; top: 0; height: 850px; opacity: 0; transition: opacity 1.1s ease; }
+  .feat.on { opacity: 1; }
+  /* Full-bleed photo that melts into the panel on every edge */
+  .feat .ph { position: absolute; left: 0; right: 0; top: 150px; height: 410px; overflow: hidden;
+              -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 70%, transparent 100%), linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%);
+              -webkit-mask-composite: source-in; mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 70%, transparent 100%), linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%); mask-composite: intersect; }
+  .feat .ph img { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(1.08) contrast(1.05); }
+  .feat .copy { position: absolute; left: 44px; right: 40px; top: 540px; }
+  .feat .feature-title { font-size: 62px; margin-top: 10px; white-space: nowrap; }
+  .feat .feature-title.wrap { white-space: normal; line-height: 1.02; text-wrap: balance; }
+  .feat .desc { font-size: 21px; color: var(--cream-2); margin-top: 12px; font-weight: 500; line-height: 1.3; }
+  .feat .big { margin-top: 12px; font-size: 58px; color: var(--gold-hi); }
+  .feat .big .word { font-family: "DM Sans", sans-serif; font-size: 26px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-hi); }
+  .feat .big .note { font-family: "DM Sans", sans-serif; font-weight: 700; font-size: 17px; letter-spacing: .2em; text-transform: uppercase; color: var(--cream-3); margin-left: 14px; vertical-align: middle; }
+  /* entrance each time a feature comes up */
+  .feat .ph, .feat .copy > * { opacity: 0; }
+  .feat.on .ph { animation: fIn 1.6s cubic-bezier(.16,1,.3,1) .05s forwards; }
+  .feat.on .ph img { animation: push 14s ease-in-out 1s infinite alternate; }
+  .feat.on .copy > * { animation: fUp .9s ease forwards; }
+  .feat.on .copy > :nth-child(2) { animation-delay: .15s; }
+  .feat.on .copy > :nth-child(3) { animation-delay: .3s; }
+  .feat.on .copy > :nth-child(4) { animation-delay: .55s; }
+  @keyframes fIn { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: none; } }
+  @keyframes fUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  @keyframes push { from { transform: scale(1); } to { transform: scale(1.06) translateY(-1%); } }
+
+  /* Today card at the bottom of the panel */
+  .today { position: absolute; left: 32px; right: 32px; bottom: 30px; padding: 18px 22px 16px; background: rgba(250,246,238,.05); border-left: 4px solid var(--red); border-radius: 0 6px 6px 0; }
+  .today .k { font-weight: 800; font-size: 15px; letter-spacing: .24em; text-transform: uppercase; color: var(--red-hi); }
+  .today .t { font-weight: 800; font-size: 26px; line-height: 1.15; margin-top: 6px; }
+  .today .t .price { color: var(--gold-hi); margin-left: 10px; }
+  .today .s { font-size: 17px; color: var(--cream-3); margin-top: 5px; font-weight: 500; line-height: 1.3; }
+  .today .bh { display: block; width: 74%; height: auto; margin: 2px 0 8px; }
+  .today .phone { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; font-size: 14px; color: var(--cream-3); }
+  .today .phone b { letter-spacing: 0; font-size: 26px; color: var(--cream); font-weight: 800; }
+  .today .hours { margin-top: 6px; font-size: 14.5px; color: var(--cream-3); font-weight: 600; }
+
+  /* ---------- menu (right) ---------- */
+  .menu { position: absolute; left: 560px; right: 0; top: 0; bottom: 0; padding: 30px 30px 40px 30px; display: grid; grid-template-rows: minmax(0, 1fr); column-gap: 24px; }
+  .col { min-height: 0; display: flex; flex-direction: column; gap: calc(20px * var(--fs)); }
+  /* Each section is its own card so the eye can find it fast. */
+  .sec { display: flex; flex-direction: column; min-height: 0; position: relative;
+         background: linear-gradient(180deg, rgba(250,246,238,.058), rgba(250,246,238,.022));
+         border: 1px solid rgba(250,246,238,.085); border-radius: 10px;
+         padding: calc(18px * var(--fs)) calc(24px * var(--fs)) calc(14px * var(--fs));
+         box-shadow: 0 10px 30px rgba(0,0,0,.38); }
+  .sec::before { content: ""; position: absolute; left: 0; top: calc(20px * var(--fs)); width: 5px; height: calc(30px * var(--fs)); background: var(--red); border-radius: 0 3px 3px 0; }
+  .sec.grow { flex: 1; }
+  .sec .head-line { display: flex; align-items: center; gap: 16px; }
+  .sec .head-line .section-title { flex: 1; }
+  .sec .section-title { font-size: calc(30px * var(--fs)); }
+  .sec .title-price { font-size: calc(34px * var(--fs)); color: var(--gold-hi); }
+  .sec .bh-logo { display: block; width: calc(300px * var(--fs)); max-width: 100%; height: auto; margin: calc(10px * var(--fs)) 0 calc(2px * var(--fs)); filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+  .sec .meta { font-size: calc(17px * var(--fs)); color: var(--gold-hi); opacity: .85; margin-top: 6px; line-height: 1.3; font-weight: 500; font-style: italic; }
+  .sec .badge { align-self: flex-start; margin-top: calc(10px * var(--fs)); font-size: calc(14px * var(--fs)); font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--ink); background: var(--gold); padding: 5px 10px 4px; border-radius: 4px; }
+
+  .rows { margin-top: calc(8px * var(--fs)); display: flex; flex-direction: column; }
+  /* Hairline between every item; prices in gold so names and prices read as two columns. */
+  .row { display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: 14px; align-items: baseline; align-content: center;
+         padding: calc(7px * var(--fs)) 0; border-top: 1px solid rgba(250,246,238,.08); }
+  .row.first { border-top: 0; }
+  .sec.grow .rows { flex: 1; }
+  .sec.grow .rows:not(.two) .row { flex: 1 1 auto; }
+  .stage.fitting .sec { flex-shrink: 0; }
+  .stage.fitting .sec.grow, .stage.fitting .sec.grow .rows, .stage.fitting .sec.grow .row { flex: none; }
+  .row .n { font-weight: 700; font-size: calc(25px * var(--fs)); line-height: 1.12; letter-spacing: -.005em; }
+  .row .n .star { color: var(--red-hi); font-size: .7em; margin-right: 7px; position: relative; top: -.12em; }
+  .row .price { font-size: calc(25px * var(--fs)); text-align: right; color: var(--gold-hi); }
+  .row .price .word { font-size: .62em; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-hi); opacity: .9; }
+  .row .d { grid-column: 1 / -1; font-weight: 500; font-size: calc(16.5px * var(--fs)); line-height: 1.25; color: var(--cream-3); margin-top: 3px; }
+  .row.hot .n { color: #fff; } .row.hot .price { color: var(--red-hi); }
+  .row.out .n { color: var(--cream-3); text-decoration: line-through; text-decoration-color: rgba(232,71,58,.85); text-decoration-thickness: 2px; }
+  .row.out .d { opacity: .6; }
+
+  /* Two price columns (sandwiches): rows flow down the left, then the right */
+  .rows.two { display: grid; grid-auto-flow: column; grid-template-rows: repeat(var(--r), auto); grid-template-columns: minmax(0,1fr) minmax(0,1fr); column-gap: calc(44px * var(--fs)); }
+  .sec.grow .rows.two { grid-template-rows: repeat(var(--r), 1fr); }
+  .stage.fitting .sec.grow .rows.two { grid-template-rows: repeat(var(--r), auto); }
+  .sec.grow .tbl { flex: 1; display: flex; flex-direction: column; }
+  .stage.fitting .sec.grow .tbl { flex: none; }
+  .tbl .row { grid-template-columns: minmax(0,1fr) calc(70px * var(--fs)) calc(82px * var(--fs)); column-gap: 10px; }
+  .tbl .row .price.one { grid-column: 2 / 4; }
+  .tbl .heads { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); column-gap: calc(44px * var(--fs)); margin-top: calc(10px * var(--fs)); }
+  .tbl .head { display: grid; grid-template-columns: minmax(0,1fr) calc(70px * var(--fs)) calc(82px * var(--fs)); column-gap: 10px; }
+  .tbl .head span { font-weight: 800; font-size: calc(14px * var(--fs)); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); text-align: right; }
+
+  /* One price, many flavors (cake slices) */
+  .chips { margin-top: calc(12px * var(--fs)); display: flex; flex-wrap: wrap; gap: calc(8px * var(--fs)) calc(18px * var(--fs)); font-weight: 600; font-size: calc(20px * var(--fs)); line-height: 1.2; }
+  .chips span { white-space: nowrap; }
+  .chips span::before { content: "\2022"; color: var(--red-hi); margin-right: 7px; }
+
+  /* $29 dinners: one row per day, tonight lit up */
+  .dn { padding: calc(8px * var(--fs)) 0; border-top: 1px solid rgba(250,246,238,.08); }
+  .dn.first { border-top: 0; }
+  .dn .day { font-weight: 800; font-size: calc(13.5px * var(--fs)); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+  .dn .main { font-weight: 700; font-size: calc(22px * var(--fs)); line-height: 1.15; margin-top: 2px; }
+  .dn .rest { font-weight: 500; font-size: calc(15.5px * var(--fs)); line-height: 1.3; color: var(--cream-3); margin-top: 2px; }
+  .dn.tonight { margin: calc(4px * var(--fs)) calc(-12px * var(--fs)); padding: calc(10px * var(--fs)) calc(12px * var(--fs)); border: 0; border-radius: 8px;
+                background: linear-gradient(90deg, rgba(200,40,30,.30), rgba(200,40,30,.08)); box-shadow: inset 3px 0 0 var(--red); }
+  .dn.tonight + .dn { border-top: 0; }
+  .dn.tonight .day { color: var(--red-hi); }
+  .dn.tonight .day b { color: var(--cream); background: var(--red); padding: 2px 7px 1px; border-radius: 3px; margin-left: 8px; letter-spacing: .16em; }
+
+  /* Limited Time card */
+  .sec.lto { background: linear-gradient(135deg, rgba(200,40,30,.34), rgba(200,40,30,.10) 60%, rgba(250,246,238,.03)); border-color: rgba(232,71,58,.45); }
+  .sec.lto::before { background: var(--gold); }
+  .lto .k { font-weight: 800; font-size: calc(14px * var(--fs)); letter-spacing: .24em; text-transform: uppercase; color: var(--gold-hi); }
+  .lto .nm { font-family: "Playfair Display", Georgia, serif; font-weight: 900; font-style: italic; font-size: calc(40px * var(--fs)); line-height: 1; margin-top: calc(8px * var(--fs)); }
+  .lto .ds { font-weight: 500; font-size: calc(17px * var(--fs)); line-height: 1.3; color: var(--cream-2); margin-top: calc(8px * var(--fs)); }
+  .lto .ft { display: flex; justify-content: space-between; align-items: baseline; margin-top: calc(10px * var(--fs)); }
+  .lto .ft .price { font-size: calc(34px * var(--fs)); color: var(--gold-hi); }
+  .lto .ft .until { font-weight: 700; font-size: calc(14px * var(--fs)); letter-spacing: .18em; text-transform: uppercase; color: var(--cream-3); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="env"><div class="bg"></div><div class="grain"></div><div class="vignette"></div></div>
+  <div class="hero" id="hero"></div>
+  <div class="menu" id="menu"></div>
+</div>
+<script src="signage.js"></script>
+<script>
+(function () {
+  "use strict";
+  const LOGO = "img/slicers-logo.webp";
+  const BH_LOGO = "img/boars-head-pf-white.png";
+  const PHONE = "610-385-2333";
+  const HOURS = "Tuesday to Sunday, 8 AM to 6 PM. Closed Mondays.";
+  const FEATURE_SECONDS = 12;
+  const tv = String(new URLSearchParams(location.search).get("tv") || "1") === "2" ? 2 : 1;
+
+  // $29 dinner specials, same as the homepage (SlicersHero DEFAULT_DINNERS)
+  // and the tablet (WebApp DINNERS). Change all three together.
+  const DINNER_PRICE = "$29";
+  const DINNERS = [
+    { key: "Tuesday", label: "Tuesday", days: [2], items: ["Chip Chicken or Beef Steak", "4 Steak Rolls", "1/4 lb American Cheese", "Sliced Onion in Olive Oil"] },
+    { key: "Wednesday", label: "Wednesday", days: [3], items: ["Meatballs with 1 Pint of Sauce", "4 Steak Rolls", "1/4 lb Provolone Cheese", "4 bags of 1oz Chips"] },
+    { key: "Thursday", label: "Thursday", days: [4], items: ["1 lb Anna Pasta", "Meatballs or Sausage", "Garlic Bread", "1 Pint of Sauce & Parmesan Cheese"] },
+    { key: "Friday", label: "Friday", days: [5], items: ["1 lb Roast Beef & Au Jus", "4 Medium Kaisers", "1/4 lb Provolone Cheese", "4 bags of 1oz Chips"] },
+    { key: "Weekend", label: "Saturday & Sunday", days: [6, 7], items: ["Manicotti or Ravioli", "1 Pint of Sauce", "Meatballs", "Sliced Bread"] }
+  ];
+  function tonight() { // Monday (closed) shows Tuesday's
+    const d = RS.weekday();
+    return DINNERS.find(x => x.days.indexOf(d) >= 0) || DINNERS[0];
+  }
+
+  /*
+   * BOARDS. Section types: rows (default), tbl (two price columns,
+   * flowing in two columns), chips (one price, many flavors),
+   * dinners ($29 dinners), lto (Limited Time card, only when one is on).
+   * Items: n = name, p = price exactly as the website shows it,
+   * d = small line (from the website copy), s = star, hot = red price,
+   * sheet = the Stock tab Item it follows for Sold Out.
+   * Features: the rotating panel. Photos from slicers-assets.
+   */
+  const BOARDS = {
+    1: {
+      cols: "minmax(0,2.2fr) minmax(0,1fr)",
+      features: [
+        { eyebrow: "House-Cooked Daily", title: "Hot Roast Beef", desc: "Hot roast beef with sharp provolone and homemade au jus", img: "../menu/roast-beef.webp", p: "$8.95", sheet: "Roast Beef" },
+        { dinner: 1 },
+        { hams: 1 }
+      ],
+      columns: [
+        [
+          { h: "Sandwiches", type: "tbl", logo: BH_LOGO, head: ["", ""], grow: 1, items: [
+            { n: "American", p: "$7.95 / $14.25" },
+            { n: "Italian", p: "$7.95 / $14.25", d: "Boar’s Head Cappy & Genoa salami, picante provolone" },
+            { n: "Turkey", p: "$7.95 / $14.25", d: "Boar’s Head Ovengold turkey with American cheese" },
+            { n: "Ham", p: "$7.95 / $14.25", d: "Boar’s Head Deluxe ham with American cheese" },
+            { n: "Mixed Cheese", p: "$7.50 / $13.55", d: "Cooper Sharp, Swiss, picante provolone & American" },
+            { n: "Tuna", p: "$8.50 / $14.90" },
+            { n: "Zep", p: "$7.50 / $13.55", d: "Cooked salami & picante provolone" },
+            { n: "Roast Beef", p: "$8.50 / $14.90", d: "Boar’s Head London Broil with picante provolone" },
+            { n: "Corned Beef Special", p: "$8.65", d: "Served deli-style on rye" },
+            { n: "Turkey Special", p: "$8.65", d: "Served deli-style on rye" },
+            { n: "Meatball", p: "$7.90 / $14.90", d: "Meatballs with sauce & provolone" },
+            { n: "Hot Roast Beef", p: "$8.95 / $16.95", d: "Sharp provolone, with homemade au jus", s: 1, hot: 1, sheet: "Roast Beef" },
+            { n: "BLT", p: "$6.15", d: "Bacon, lettuce & tomato on a fresh roll" },
+            { n: "Turkey Club", p: "$8.15" },
+            { n: "Chicken Salad", p: "$8.30 / $14.95", d: "White meat chicken salad with picante provolone" }
+          ]}
+        ],
+        [
+          { type: "lto" },
+          { h: "Breakfast", meta: "On a large Kaiser roll", items: [
+            { n: "Bacon, Egg & Cheese", p: "$7.95", d: "Two eggs, American & four slices of bacon" },
+            { n: "Ham, Egg & Cheese", p: "$7.95", d: "Two eggs, Boar’s Head Deluxe ham & American" },
+            { n: "Egg & Cheese", p: "$6.95", d: "Two eggs & American cheese" }
+          ]},
+          { h: "$29 Dinners", type: "dinners", grow: 1 }
+        ]
+      ]
+    },
+    2: {
+      cols: "minmax(0,1fr) minmax(0,1fr) minmax(0,1.12fr)",
+      features: [
+        { eyebrow: "Corropolese Classic", title: "Tomato Pie", desc: "Thick square pie with homemade marinara and grated parmesan", img: "../menu/tomato-pie.webp", p: "$6.25", note: "Quarter sheet", sheet: "Tomato Pie" },
+        { eyebrow: "Corropolese Favorites", title: "Sweet Pepper Pie", desc: "One of seven specialty tomato pies", img: "../menu/specialty-pie.webp", p: "$6.95", note: "Quarter sheet", sheet: "Specialty Pie" },
+        { eyebrow: "Philly Legend Since 1924", title: "Stock’s Pound Cake", desc: "The hard-to-find favorite, right here", img: "../menu/famous-stocks-cake.webp", p: "In stock", sheet: "Famous Stock's Cake" },
+        { eyebrow: "Fresh Daily", title: "Apple Fritters", desc: "Fresh apple fritters from Suzy-Jo in Bridgeport", img: "../menu/suzy-jo-apple-fritter.webp", p: "Fresh daily" },
+        { hams: 1 }
+      ],
+      columns: [
+        [
+          { h: "Tomato Pie", meta: "Corropolese favorites · quarter sheets", grow: 1, items: [
+            { n: "Red", p: "$6.25", s: 1, hot: 1, d: "Homemade marinara & grated parmesan, traditional crust", sheet: "Tomato Pie" },
+            { n: "Sweet Pepper", p: "$6.95", sheet: "Specialty Pie" },
+            { n: "Veggie", p: "$6.95", sheet: "Specialty Pie" },
+            { n: "Spinach", p: "$6.95", sheet: "Specialty Pie" },
+            { n: "Cheese", p: "$6.95", sheet: "Specialty Pie" },
+            { n: "Bruschetta", p: "$6.95", sheet: "Specialty Pie" },
+            { n: "Eggplant", p: "$6.95", sheet: "Specialty Pie" },
+            { n: "Hot Pepper", p: "$6.95", sheet: "Specialty Pie" }
+          ]},
+          { h: "Cake Slices", type: "chips", p: "$3", items: [
+            "Chocolate Chip Cheesecake", "Plain Cheesecake", "Raspberry Cheesecake", "Salted Caramel Apple Cheesecake",
+            "Chocolate Peanut Butter Cake", "Carrot Cake", "German Chocolate Cake"
+          ]}
+
+        ],
+        [
+          { h: "Rolls & Bread", badge: "Corropolese · fresh daily", grow: 1, items: [
+            { n: "Medium Kaisers", p: "$7.20/dz" },
+            { n: "Party Rolls", p: "$7.20/dz" },
+            { n: "Large Kaisers", p: "$7.80/dz" },
+            { n: "Steak Rolls", p: "$7.80/dz" },
+            { n: "Club Rolls", p: "$7.80/dz" },
+            { n: "Vienna Football", p: "$7.80/dz" },
+            { n: "Dinner Rolls", p: "$5.40/dz" },
+            { n: "Ham Rolls", p: "$7.20/dz" },
+            { n: "Pan Rolls", p: "$7.80/dz" },
+            { n: "Hot Dog Rolls", p: "$7.20" },
+            { n: "Vienna Split", p: "$4.55" },
+            { n: "Large Rye", p: "$7.80" },
+            { n: "Sourdough", p: "$4.55" }
+          ]}
+        ],
+        [
+          { h: "Local Sweets", meta: "Hard-to-find favorites", grow: 1, items: [
+            { n: "Stock’s Pound Cake", p: "In stock", d: "Philly legend since 1924", s: 1, sheet: "Famous Stock's Cake" },
+            { n: "Suzy-Jo Donuts", p: "Fresh daily", d: "Fresh-made donuts from Bridgeport, PA" },
+            { n: "Apple Fritters", p: "Fresh daily", d: "Fresh apple fritters from Suzy-Jo" },
+            { n: "Pellman’s Cakes", p: "Ask us", d: "Lancaster County cakes & cheesecakes" }
+          ]},
+          { h: "Cookie Trays", meta: "Party-ready trays", items: [
+            { n: "2 lb", p: "$29.39" }, { n: "3 lb", p: "$41.09" }, { n: "4 lb", p: "$53.79" },
+            { n: "5 lb", p: "$66.49" }, { n: "6 lb", p: "$79.19" }, { n: "7 lb", p: "$91.89" },
+            { n: "8 lb", p: "$104.59" }
+          ]}
+
+        ]
+      ]
+    }
+  };
+
+  const B = BOARDS[tv];
+  const esc = RS.esc;
+
+  /* ---------- prices ---------- */
+  // "$7.20/dz" -> 7<sup>20</sup><small>/dz</small> ; "Fresh daily" -> word tag
+  function money(str) {
+    const s = String(str || "").trim();
+    if (!/\d/.test(s)) return '<span class="word">' + esc(s) + '</span>';
+    const m = s.match(/^(.*?)(\/dz)$/i);
+    return m ? RS.money(m[1]) + '<small>/dz</small>' : RS.money(s);
+  }
+  const outTag = '<span class="tag-out">Sold Out</span>';
+
+  /* ---------- sections ---------- */
+  function rowHtml(it, i) {
+    const out = RS.soldOut(it.sheet);
+    return '<div class="row' + (i === 0 ? ' first' : '') + (it.hot && !out ? ' hot' : '') + (out ? ' out' : '') + '">' +
+      '<div class="n">' + (it.s ? '<span class="star">&#9733;</span>' : '') + esc(it.n) + '</div>' +
+      '<div class="price">' + (out ? outTag : money(it.p)) + '</div>' +
+      (it.d ? '<div class="d">' + esc(it.d) + '</div>' : '') + '</div>';
+  }
+  function tblRow(it, i, perCol) {
+    const out = RS.soldOut(it.sheet);
+    const parts = String(it.p).split("/").map(s => s.trim()).filter(Boolean);
+    const cells = out ? '<div class="price one">' + outTag + '</div>'
+      : parts.length === 2 ? '<div class="price">' + money(parts[0]) + '</div><div class="price">' + money(parts[1]) + '</div>'
+      : '<div class="price one">' + money(parts[0]) + '</div>';
+    return '<div class="row' + (i % perCol === 0 ? ' first' : '') + (it.hot && !out ? ' hot' : '') + (out ? ' out' : '') + '">' +
+      '<div class="n">' + (it.s ? '<span class="star">&#9733;</span>' : '') + esc(it.n) + '</div>' + cells +
+      (it.d ? '<div class="d">' + esc(it.d) + '</div>' : '') + '</div>';
+  }
+  function dinnersHtml() {
+    const t = tonight();
+    const closed = RS.closedToday();
+    return '<div class="rows">' + DINNERS.map((x, i) => {
+      const on = x === t;
+      return '<div class="dn' + (i === 0 ? ' first' : '') + (on ? ' tonight' : '') + '">' +
+        '<div class="day">' + esc(x.label) + (on ? '<b>' + (closed ? 'Next' : 'Tonight') + '</b>' : '') + '</div>' +
+        '<div class="main">' + esc(x.items[0]) + '</div>' +
+        '<div class="rest">' + x.items.slice(1).map(esc).join(" · ") + '</div></div>';
+    }).join("") + '</div>';
+  }
+  function ltoHtml() {
+    const l = RS.lto();
+    if (!l) return "";
+    const kicker = l.state === "scheduled" ? "Coming " + (l.startsDay || "Soon") : "Limited Time";
+    const until = l.state === "live" && l.endsLabel ? "Through " + l.endsLabel : "";
+    return '<section class="sec lto"><div class="k">' + esc(kicker) + '</div>' +
+      '<div class="nm">' + esc(l.item) + '</div>' +
+      (l.desc ? '<div class="ds">' + esc(l.desc) + '</div>' : '') +
+      ((l.price || until) ? '<div class="ft"><div class="price">' + (l.price ? money(l.price) : '') + '</div><div class="until">' + esc(until) + '</div></div>' : '') +
+      '</section>';
+  }
+  function secHtml(sec) {
+    if (sec.type === "lto") return ltoHtml();
+    let body = "";
+    if (sec.type === "tbl") {
+      const per = Math.ceil(sec.items.length / 2);
+      const heads = sec.head && sec.head.some(Boolean)
+        ? '<div class="heads">' + [0, 1].map(() => '<div class="head"><span></span>' + sec.head.map(h => '<span>' + esc(h) + '</span>').join("") + '</div>').join("") + '</div>'
+        : "";
+      body = '<div class="tbl">' + heads + '<div class="rows two" style="--r:' + per + '">' + sec.items.map((it, i) => tblRow(it, i, per)).join("") + '</div></div>';
+    } else if (sec.type === "chips") {
+      body = '<div class="chips">' + sec.items.map(n => '<span>' + esc(n) + '</span>').join("") + '</div>';
+    } else if (sec.type === "dinners") {
+      body = dinnersHtml();
+    } else {
+      body = '<div class="rows">' + sec.items.map(rowHtml).join("") + '</div>';
+    }
+    const price = sec.p || "";
+    return '<section class="sec' + (sec.grow ? ' grow' : '') + (sec.type === "tbl" ? ' tbl' : '') + '">' +
+      '<div class="head-line"><div class="section-title">' + esc(sec.h) + '</div>' + (price ? '<div class="title-price price">' + money(price) + '</div>' : '') + '</div>' +
+      (sec.logo ? '<img class="bh-logo" src="' + sec.logo + '" alt="Proudly Featuring Boar’s Head">' : '') +
+      (sec.badge ? '<div class="badge">' + esc(sec.badge) + '</div>' : '') +
+      (sec.meta ? '<div class="meta">' + esc(sec.meta) + '</div>' : '') + body + '</section>';
+  }
+
+  function drawMenu() {
+    const menu = document.getElementById("menu");
+    menu.style.gridTemplateColumns = B.cols;
+    menu.innerHTML = B.columns.map(c => '<div class="col">' + c.map(secHtml).join("") + '</div>').join("");
+    fit();
+  }
+
+  /* One text size for the whole board. */
+  function fit() {
+    const stage = document.getElementById("stage");
+    const over = () => [...document.querySelectorAll(".menu .col")].some(c => c.scrollHeight > c.clientHeight + 1) ||
+      [...document.querySelectorAll(".menu .row")].some(r => r.scrollWidth > r.clientWidth + 1);
+    let fs = 1;
+    stage.classList.add("fitting");
+    stage.style.setProperty("--fs", fs);
+    while (over() && fs > 0.6) { fs = Math.round((fs - 0.02) * 100) / 100; stage.style.setProperty("--fs", fs); }
+    stage.classList.remove("fitting");
+    stage.dataset.fs = fs;
+  }
+
+  /* ---------- feature panel ---------- */
+  // The features showing right now: sold out ones drop out, the dinner
+  // follows the day, hams only while orders are open, and a live Limited
+  // Time sandwich gets every other slot.
+  function features() {
+    const list = [];
+    B.features.forEach(f => {
+      if (f.dinner) {
+        const t = tonight();
+        list.push({ eyebrow: (RS.closedToday() ? t.label + "’s " : "Tonight’s ") + "Dinner Special", title: t.items[0],
+                    desc: t.items.slice(1).join(" · "), img: "../dinners/" + t.key.toLowerCase() + ".webp", p: DINNER_PRICE });
+      } else if (f.hams) {
+        const h = RS.hams();
+        if (!h) return;
+        const o = h.open[0];
+        list.push({ eyebrow: "Holiday Ham Pre-Orders", title: "Holiday Hams", desc: (h.product || "Boar’s Head Sweet Slice ham") + ". " + o.name + " orders close " + o.orderByLabel + ".",
+                    img: "../hams/holiday-ham-table.webp", p: "$" + Number(h.pricePerLb).toFixed(2), note: "Per lb" });
+      } else if (!RS.soldOut(f.sheet)) {
+        list.push(f);
+      }
+    });
+    const l = RS.lto();
+    if (l && l.photo) {
+      const lf = { eyebrow: l.state === "scheduled" ? "Coming " + (l.startsDay || "Soon") : "Limited Time Only", title: l.item, desc: l.desc || "", img: l.photo, p: l.price || "", focus: l.focus };
+      const mixed = [];
+      list.forEach(x => { mixed.push(lf); mixed.push(x); });
+      return mixed.length ? mixed : [lf];
+    }
+    return list;
+  }
+
+  let heroKey = "", cur = 0, timer = null;
+  // Long names shrink to fit the panel; really long ones wrap to two lines.
+  function fitTitles() {
+    document.querySelectorAll(".feat .feature-title").forEach(t => {
+      let size = 62; t.classList.remove("wrap"); t.style.fontSize = size + "px";
+      while (t.scrollWidth > t.clientWidth && size > 46) { size -= 2; t.style.fontSize = size + "px"; }
+      if (t.scrollWidth > t.clientWidth) { t.classList.add("wrap"); t.style.fontSize = "52px"; }
+    });
+  }
+  function todayCard() {
+    // Holiday hams while orders are open (both TVs). Otherwise TV 1 pushes
+    // catering (lowest hoagie tray price, from SlicersCateringPage) and TV 2
+    // shows the Boar’s Head badge. Tonight’s dinner is
+    // already lit up in the menu and in the rotation.
+    const h = RS.hams();
+    if (h) {
+      const o = h.open[0];
+      return '<div class="k">Holiday Hams</div><div class="t">' + esc(o.name) + ' orders close ' + esc(o.orderByLabel) + '</div>' +
+        '<div class="s">' + esc((h.product || "Boar’s Head Sweet Slice ham") + " · $" + Number(h.pricePerLb).toFixed(2) + " per lb") + '</div>';
+    }
+    if (tv === 1) return '<div class="k">Catering</div><div class="t">Hoagie trays from <span class="price">' + money("$46.99") + '</span></div>' +
+      '<div class="s">Order 48 hours ahead at slicersdeli.com/catering</div>';
+    return '<img class="bh" src="' + BH_LOGO + '" alt="Proudly Featuring Boar’s Head"><div class="s">Corropolese tomato pie and rolls, fresh daily</div>';
+  }
+  function drawHero() {
+    const hero = document.getElementById("hero");
+    const feats = features();
+    const key = JSON.stringify(feats);
+    if (key !== heroKey) {
+      heroKey = key;
+      cur = 0;
+      if (timer) clearInterval(timer);
+      hero.innerHTML =
+        feats.map(f =>
+          '<div class="feat"><div class="ph"><img src="' + esc(f.img) + '" alt=""' + (f.focus ? ' style="object-position:' + esc(f.focus) + '"' : '') + '></div>' +
+          '<div class="copy"><div class="eyebrow">' + esc(f.eyebrow) + '</div><div class="feature-title">' + esc(f.title) + '</div>' +
+          (f.desc ? '<div class="desc">' + esc(f.desc) + '</div>' : '') +
+          '<div class="big price">' + (f.p ? money(f.p) : '') + (f.note ? '<span class="note">' + esc(f.note) + '</span>' : '') + '</div></div></div>').join("") +
+        '<div class="logo"><img src="' + LOGO + '" alt="Slicers Deli"></div><div class="today" id="today"></div>';
+      const els = hero.querySelectorAll(".feat");
+      fitTitles();
+      if (els.length) els[0].classList.add("on");
+      if (els.length > 1) timer = setInterval(() => {
+        els[cur].classList.remove("on");
+        cur = (cur + 1) % els.length;
+        void els[cur].offsetWidth;
+        els[cur].classList.add("on");
+      }, FEATURE_SECONDS * 1000);
+    }
+    document.getElementById("today").innerHTML = todayCard() +
+      '<div class="phone">Call Ahead<b>' + PHONE + '</b></div><div class="hours">' + esc(HOURS) + '</div>';
+  }
+
+  /* Preview feed for &demo=lto,hams,soldout (no internet needed) */
+  window.RS_DEMO = function (flags) {
+    const on = f => flags.indexOf(f) >= 0;
+    const items = ["Tomato Pie", "Specialty Pie", "Roast Beef", "Au Jus", "Famous Stock's Cake"].map(n =>
+      ({ item: n, available: !(on("soldout") && (n === "Specialty Pie" || n === "Famous Stock's Cake")), mode: "regular" }));
+    if (on("lto")) items.push({ item: "The Hurts Locker", mode: "lto", available: true, state: "live", hero: true, endsLabel: "Nov 22",
+      photo: "../lto/26_TheHurtsLocker.webp", desc: "Boar’s Head Ovengold Turkey, Cooper Sharp, green peppers and fried onions", price: "" });
+    return { ok: true, items: items, hams: on("hams") ? { product: "Boar’s Head Sweet Slice half ham", pricePerLb: 8.49,
+      open: [{ name: "Thanksgiving", orderByLabel: "Friday, November 20" }] } : null };
+  };
+
+  RS.start(function () { drawMenu(); drawHero(); });
+  // Fonts arrive after the first draw: measure again once they're in.
+  const refit = () => { fit(); fitTitles(); };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+  window.addEventListener("load", refit);
+  setTimeout(refit, 3000);
+  setInterval(() => { drawMenu(); drawHero(); }, 30 * 60 * 1000); // tonight's dinner changes at midnight
+})();
+</script>
+</body>
+</html>
